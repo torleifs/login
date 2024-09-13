@@ -1,0 +1,10 @@
+.modal {
+  border: none;
+  border-radius: 8px;
+  padding: 20px;
+}
+.modal::backdrop {
+    background-color: rgba(0, 0, 0, 0.7);
+
+
+}

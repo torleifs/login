@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    --primary: 33 201 120;
+    --secondary: 201 120 33;
+    --background: 18 18 18;
+    --foreground: 239 239 239;
+    --font-body: 'Roboto Mono', monospace;
+  }
+}
+
+body {
+  @apply font-body;
+}
