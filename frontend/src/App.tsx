@@ -32,7 +32,7 @@ function App() {
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">Passwordless login</h1>
         <small className="text-sm text-gray-500">Authentication from the future</small>
         <p className="text-sm md:text-base lg:text-lg text-center m-2 max-w-md ">
-          Register a user and log in with a single click. No passwords, I promise.
+          Register a user and log in with a single tap. No passwords, I promise.
         </p>
         <div className="flex justify-around w-full p-2">
           <Dialog open={isModalActive} onOpenChange={setIsModalActive}>

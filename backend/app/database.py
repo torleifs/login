@@ -1,11 +1,18 @@
+import os
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from app.settings import settings
 
-DATABASE_URL = settings.database_url
-print("Creating DB with connection string", DATABASE_URL)
+PG_USERNAME = "loginuser"
+PG_PASSWORD = os.getenv("PG_PASSWORD")
+HOST = "logindbserver.postgres.database.azure.com"
+DATABASENAME = "logindb"
+DATABASE_URL = (
+    f"postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{HOST}:5432/{DATABASENAME}"
+)
+
 engine = create_async_engine(DATABASE_URL, echo=True, future=True)
 
 

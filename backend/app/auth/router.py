@@ -25,19 +25,24 @@ session_store = {}
 async def begin_registration(
     response: Response, player: PlayerDto, session: AsyncSession = Depends(get_session)
 ):
+    print("Checking if user exists")
     await raise_if_user_exists(session, player.email)
 
+    print("Generating registration options")
     registration_options = get_credential_creation_options(
-        "Lost company", "localhost", player
+        "Lost company",
+        "myuniquepasswordlessloginservice.azurewebsites.net",
+        player,
     )
 
+    print("Creating pending registration")
     pendingRegistration = PendingRegistration(
         challenge=registration_options.challenge,
         user_id=registration_options.user.id,
         user_name=player.name,
         user_email=player.email,
     )
-
+    print("Adding session data and setting cookie")
     add_session_data_and_set_cookie(response, pendingRegistration.model_dump())
 
     return options_to_json(registration_options)
@@ -94,7 +99,7 @@ def add_session_data_and_set_cookie(response: Response, session_data: dict[str, 
         value=session_id,
         httponly=True,
         secure=True,
-        samesite="strict",
+        samesite="None",
     )
 
 

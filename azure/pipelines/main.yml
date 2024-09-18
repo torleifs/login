@@ -1,0 +1,108 @@
+trigger:
+  batch: true # combine multiple commits or pushes to the same branch into one build
+  branches:
+    include:
+      - main
+  tags:
+    include:
+      - '*'
+
+pool:
+  vmImage: 'ubuntu-latest'
+  workspace:
+    clean: all # delete all files before a new build
+
+variables:
+  DOCKER_REGISTRY_SERVICE_CONNECTION: 'docker-registry'
+  IMAGE_NAME: 'torleifs/webauthn'
+  containerName: '$web' # $web is a special container for static websites
+  API_URL: 'https://myuniquepasswordlessloginservice.azurewebsites.net'
+stages:
+  - stage: buildAndPush
+    displayName: Build and push
+    condition: ne(variables['Build.Reason'], 'PullRequest') # only run on merges to main
+    jobs:
+      - job: buildAndPushApiContainerImage
+        displayName: Build and push image to container registry
+        steps:
+          - task: Docker@2
+            displayName: Build API container image
+            inputs:
+              containerRegistry: $(DOCKER_REGISTRY_SERVICE_CONNECTION)
+              repository: $(IMAGE_NAME)
+              command: build
+              Dockerfile: $(Build.SourcesDirectory)/backend/Dockerfile
+              tags: |
+                $(Build.BuildId)
+                latest
+          - task: Docker@2
+            displayName: Push API container image
+            inputs:
+              containerRegistry: $(DOCKER_REGISTRY_SERVICE_CONNECTION)
+              repository: $(IMAGE_NAME)
+              command: push
+              tags: |
+                $(Build.BuildId)
+                latest
+  - stage: deployApi
+    displayName: Deploy API
+    dependsOn: buildAndPush
+    condition: ne(variables['Build.Reason'], 'PullRequest') # only run on merges to main
+    jobs:
+      - job: deployApi
+        displayName: Deploy API
+        steps:
+          - task: AzureWebAppContainer@1
+            displayName: 'deploy API to Azure App Service'
+            inputs:
+              azureSubscription: 'deploy-dockerized-api'
+              appName: 'myuniquepasswordlessloginservice'
+              resourceGroup: 'login-rg'
+              containers: torleifs/webauthn:latest
+  - stage: buildAndDeployWebApp
+    displayName: Build and deploy web app
+    jobs:
+      - job: buildAndDeployWebApp
+        displayName: Build and deploy web app
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '21.x'
+            displayName: 'Install Node.js'
+          - script: |
+              pushd frontend
+              echo "API URL: $VITE_API_URL"
+              npm install
+              npm run build
+              popd
+            displayName: 'Build web app'
+            env:
+              VITE_API_URL: $(API_URL)
+          - task: AzureCLI@2
+            displayName: 'Set static website properties'
+            inputs:
+              azureSubscription: deploy-dockerized-api
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az storage blob service-properties update \
+                  --account-name myuniqueloginstorage \
+                  --static-website \
+                  --index-document index.html \
+                  --404-document 404.html
+
+          - task: AzureCLI@2
+            displayName: 'Upload web app to storage account'
+            inputs:
+              azureSubscription: deploy-dockerized-api
+              scriptType: bash
+              scriptLocation: inlineScript
+              # $web is a special container for static websites
+              # --overwrite is needed to overwrite existing files
+              inlineScript: |
+                az storage blob upload-batch \
+                  --account-name myuniqueloginstorage \
+                  --destination '$(containerName)' \
+                  --source frontend/dist \
+                  --pattern "*" \
+                  --overwrite

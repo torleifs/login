@@ -19,7 +19,7 @@ type TransmittablePublicKeyCredential = Omit<PublicKeyCredential, 'rawId' | 'res
   response: TransmittableAttestationResponse | TransmittableAssertionResponse;
 };
 
-const HOSTNAME = 'http://localhost:8000';
+const HOSTNAME = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Register a new user with passwordless authentication.
@@ -34,6 +34,7 @@ const HOSTNAME = 'http://localhost:8000';
  */
 export async function registerNewPlayer(player: Player): Promise<Player | undefined> {
   const body = JSON.stringify({ email: player.email, name: player.name });
+  console.log('url: ', import.meta.env.VITE_API_URL);
   const response = await axios.post(`${HOSTNAME}/auth/registration/begin/`, body, {
     headers: {
       'Content-Type': 'application/json',

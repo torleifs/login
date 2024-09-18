@@ -1,5 +1,5 @@
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { ErrorMessage } from '@hookform/error-message';
+
 import { yupResolver } from '@hookform/resolvers/yup';
 import { playerSchema } from './PlayerValidation';
 import {
@@ -21,9 +21,7 @@ import { handleAxiosError } from '@/utils';
 
 type RegistrationModalContentProps = {
   setIsModalActive: React.Dispatch<React.SetStateAction<boolean>>;
-  setGlobalNotification: React.Dispatch<
-    React.SetStateAction<GlobalNotification | undefined>
-  >;
+  setGlobalNotification: React.Dispatch<React.SetStateAction<GlobalNotification | undefined>>;
 };
 
 const RegistrationModalContent = ({
@@ -42,21 +40,14 @@ const RegistrationModalContent = ({
           message:
             'Most likely, id, origin or password is missing in the challenge from the server',
         });
-      } else if (
-        err instanceof DOMException &&
-        err.name === 'NotAllowedError'
-      ) {
+      } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setGlobalNotification({
           heading: 'Operation not allowed',
           message:
             'Either a permissions policy blocks the operation or a there is a cross-origin issue',
         });
       } else {
-        handleAxiosError(
-          'Failed to register player',
-          err,
-          setGlobalNotification
-        );
+        handleAxiosError('Failed to register player', err, setGlobalNotification);
       }
     } finally {
       setIsLoading(false);
@@ -75,16 +66,14 @@ const RegistrationModalContent = ({
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid, dirtyFields },
+    formState: { isValid },
   } = useForm<Player>({ resolver: yupResolver(playerSchema), mode: 'all' });
   const [isLoading, setIsLoading] = useState(false);
   return (
     <DialogContent className="sm:max-w-[425px] bg-black text-white">
       <DialogHeader>
-        <DialogTitle>Register a new player</DialogTitle>
-        <DialogDescription>
-          We only need a name and an email address.
-        </DialogDescription>
+        <DialogTitle>Register a new user</DialogTitle>
+        <DialogDescription>We only need a name and an email address.</DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4">
         <form id="registrationForm" onSubmit={handleSubmit(onSubmit)}>
@@ -113,11 +102,7 @@ const RegistrationModalContent = ({
         </form>
       </div>
       <DialogFooter>
-        <Button
-          type="submit"
-          form="registrationForm"
-          disabled={!isValid || isLoading}
-        >
+        <Button type="submit" form="registrationForm" disabled={!isValid || isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isLoading ? 'Registering player' : 'Register player'}
         </Button>
