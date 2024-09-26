@@ -52,7 +52,7 @@ def get_credential_creation_options(
     user_id = uuid.uuid4().bytes
 
     return generate_registration_options(
-        rp_id=rp_id,  # TODO: change this to the actual domain
+        rp_id="thelogin.xyz",  # rp_id,  # TODO: change this to the actual domain
         rp_name=company_name,
         user_id=user_id,
         user_name=player.email,

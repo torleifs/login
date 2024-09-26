@@ -1,3 +1,7 @@
+resource keyvault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: 'myloginservice-kv'
+}
+
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: 'myAppServicePlan'
   location: resourceGroup().location
@@ -43,24 +47,38 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-04-01' = {
   }
 }
 
-resource keyvault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: 'myloginservice-kv'
+resource cdnProfile 'Microsoft.Cdn/profiles@2024-02-01' = {
+  name: 'myloginservice-cdn'
+  location: resourceGroup().location
+  sku: { name: 'Standard_Microsoft' }
+}
+
+resource cdnEndPoint 'Microsoft.Cdn/profiles/endpoints@2023-05-01' = {
+  parent: cdnProfile
+  name: 'myloginservice-cdn-endpoint'
   location: resourceGroup().location
   properties: {
-    tenantId: subscription().tenantId
-    sku: {
-      family: 'A'
-      name: 'standard'
-    }
-    accessPolicies: [
+    originHostHeader: '${storageAccount.name}.z33.web.core.windows.net'
+    origins: [
       {
-        tenantId: subscription().tenantId
-        objectId: appService.identity.principalId
-        permissions: {
-          secrets: ['get']
+        name: 'origin1'
+        properties: {
+          hostName: '${storageAccount.name}.z16.web.core.windows.net'
+          httpPort: 80
+          httpsPort: 443
         }
       }
     ]
+    isHttpAllowed: true
+    isHttpsAllowed: true
+  }
+}
+
+resource customDomain 'Microsoft.Cdn/profiles/endpoints/customDomains@2021-06-01' = {
+  name: 'xyz-custom-domain'
+  parent: cdnEndPoint
+  properties: {
+    hostName: 'www.thelogin.xyz'
   }
 }
 
@@ -68,7 +86,7 @@ resource appSettings 'Microsoft.Web/sites/config@2021-02-01' = {
   parent: appService
   name: 'appsettings'
   properties: {
-    PG_PASSWORD: '@Microsoft.KeyVault(SecretUri=https://${keyvault.name}.vault.azure.net/secrets/pgLoginPassword)'
+    PG_PASSWORD: '@Microsoft.KeyVault(SecretUri=${keyvault.properties.vaultUri}secrets/pgLoginPassword)'
   }
 }
 
@@ -83,3 +101,30 @@ module database './database.bicep' = {
     skuName: 'Standard_B1ms'
   }
 }
+
+// post-deployment scripts
+
+// resource httpsSettingIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-11-30' = {
+//   name: 'https-setting-identity'
+//   location: resourceGroup().location
+// }
+
+// resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
+//   name: 'setup-https-for-cdn'
+//   location: resourceGroup().location
+//   identity: {
+//     type: 'UserAssigned'
+//     userAssignedIdentities: {
+//       '${httpsSettingIdentity.id}': {}
+//     }
+//   }
+//   kind: 'AzureCLI'
+//   properties: {
+//     azCliVersion: '2.37.0' // Specify the Azure CLI version
+//     scriptContent: 'az cdn custom-domain enable-https -g ${resourceGroup().name} -n ${customDomain.name} --profile-name ${cdnProfile.name} --endpoint-name ${cdnEndPoint.name}'
+
+//     timeout: 'PT30M' // Specify a timeout period
+//     retentionInterval: 'PT1H'
+//     cleanupPreference: 'OnSuccess' // Clean up the container group after a successful run
+//   }
+// }

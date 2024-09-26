@@ -13,6 +13,7 @@ DATABASE_URL = (
     f"postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{HOST}:5432/{DATABASENAME}"
 )
 
+print("Creating DB with connection string", DATABASE_URL)
 engine = create_async_engine(DATABASE_URL, echo=True, future=True)
 
 
