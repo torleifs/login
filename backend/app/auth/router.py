@@ -100,7 +100,7 @@ def add_session_data_and_set_cookie(response: Response, session_data: dict[str, 
         httponly=True,
         secure=True,
         samesite="none",
-        domain="thelogin.xyz",
+        domain=".thelogin.xyz",
     )
 
 
