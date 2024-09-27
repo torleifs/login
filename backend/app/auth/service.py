@@ -79,8 +79,8 @@ async def verify_registration_and_store_user(
     registration = verify_registration_response(
         credential=credential,
         expected_challenge=pendingRegistration.challenge,
-        expected_origin="http://localhost:5173",
-        expected_rp_id="localhost",
+        expected_origin="https://www.thelogin.xyz",
+        expected_rp_id="thelogin.xyz",
     )
     player_data = Player(
         id=uuid.UUID(bytes=pendingRegistration.user_id),

@@ -86,6 +86,7 @@ resource appSettings 'Microsoft.Web/sites/config@2021-02-01' = {
   parent: appService
   name: 'appsettings'
   properties: {
+    // TODO: add cors, dbuser, dbhost
     PG_PASSWORD: '@Microsoft.KeyVault(SecretUri=${keyvault.properties.vaultUri}secrets/pgLoginPassword)'
   }
 }
