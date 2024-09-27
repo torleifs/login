@@ -94,13 +94,16 @@ async def complete_assertion(
 def add_session_data_and_set_cookie(response: Response, session_data: dict[str, any]):
     session_id = secrets.token_urlsafe(16)
     session_store[session_id] = session_data
-    response.set_cookie(
-        key="session_id",
-        value=session_id,
-        httponly=True,
-        secure=True,
-        samesite="None",
+    response.headers["Set-Cookie"] = (
+        f"session_id={session_id}; Secure; HttpOnly; SameSite=None; Partitioned"
     )
+    # response.set_cookie(
+    #     key="session_id",
+    #     value=session_id,
+    #     httponly=True,
+    #     secure=True,
+    #     samesite="None",
+    # )
 
 
 def get_session_data_from_request_and_remove_cookie_and_entry(

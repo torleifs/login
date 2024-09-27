@@ -25,6 +25,9 @@ from .utils import parse_credential_id
 from .dtos import PlayerDto
 from .models import Player
 
+expected_origin = "https://www.thelogin.xyz"
+rp_id = "thelogin.xyz"
+
 
 class PendingRegistration(BaseModel):
     challenge: bytes
@@ -107,7 +110,7 @@ async def get_user_from_credential_id(
 
 def get_authentication_options() -> PublicKeyCredentialRequestOptions:
     return generate_authentication_options(
-        rp_id="localhost",
+        rp_id=rp_id,
         challenge=create_challenge(),
         user_verification=UserVerificationRequirement.REQUIRED,
     )
@@ -122,8 +125,8 @@ async def verify_auth_credentials(
     verified_auth = verify_authentication_response(
         credential=credential,
         expected_challenge=original_challenge,
-        expected_origin="http://localhost:5173",
-        expected_rp_id="localhost",
+        expected_origin=expected_origin,
+        expected_rp_id=rp_id,
         require_user_verification=True,
         credential_public_key=registered_user.public_key,
         credential_current_sign_count=registered_user.sign_count,
