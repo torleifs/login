@@ -16,7 +16,7 @@ variables:
   DOCKER_REGISTRY_SERVICE_CONNECTION: 'docker-registry'
   IMAGE_NAME: 'torleifs/webauthn'
   containerName: '$web' # $web is a special container for static websites
-  API_URL: 'https://myuniquepasswordlessloginservice.azurewebsites.net'
+  API_URL: 'https://api.thelogin.xyz'
 stages:
   - stage: buildAndPush
     displayName: Build and push
