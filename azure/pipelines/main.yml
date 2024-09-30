@@ -146,6 +146,20 @@ stages:
                   --source frontend/dist \
                   --pattern "*" \
                   --overwrite
+          - task: AzureCLI@2
+            displayName: 'Purge CDN endpoint'
+            inputs:
+              azureSubscription: 'deploy-dockerized-api'
+              scriptType: bash
+              scriptLocation: inlineScript
+
+              inlineScript: |
+                az cdn endpoint purge \
+                  --resource-group login-rg \
+                  --profile-name  myloginservice-cdn\
+                  --name  myloginservice-cdn-endpoint\
+                  --content-paths '/*'
+
       - job: DeployBackend
         displayName: 'Deploy backend'
         condition: |
