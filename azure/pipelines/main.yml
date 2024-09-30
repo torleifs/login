@@ -6,6 +6,10 @@ trigger:
   tags:
     include:
       - '*'
+pr:
+  branches:
+    include:
+      - '*'
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -17,16 +21,76 @@ variables:
   IMAGE_NAME: 'torleifs/webauthn'
   containerName: '$web' # $web is a special container for static websites
   API_URL: 'https://api.thelogin.xyz'
+
 stages:
-  - stage: buildAndPush
-    displayName: Build and push
-    condition: ne(variables['Build.Reason'], 'PullRequest') # only run on merges to main
+  - stage: Build
     jobs:
-      - job: buildAndPushApiContainerImage
-        displayName: Build and push image to container registry
+      - job: BuildFrontend
+        displayName: 'Build frontend'
+        condition: contains(variables['Build.SourceBranchName'], 'main')
         steps:
+          - checkout: self # necessary since we do git diff
+            fetchDepth: 2
+          - script: |
+              echo "Checking if frontend has changed"
+              if git diff --name-only HEAD^ HEAD | grep -q -e '^frontend/' -e '^azure/'; then
+                echo "##vso[task.setvariable variable=FrontendChanged;isOutput=true]true";
+                echo "##vso[task.setvariable variable=stopJob]false";
+              else
+                echo "##vso[task.setvariable variable=FrontendChanged;isOutput=true]false";
+                echo "##vso[task.setvariable variable=stopJob]true";
+                echo $variables.stopJob
+              fi
+            displayName: 'Check if frontend changed'
+            name: CheckFrontendChanges
+          - task: UseNode@1
+            condition: eq(variables.stopJob, 'false')
+            inputs:
+              version: '21.x'
+          - task: Cache@2
+            condition: eq(variables.stopJob, 'false')
+            inputs:
+              # package-lock.json content is hashed to construct the key
+              key: 'npm | "$(Agent.OS)" | frontend/package-lock.json'
+              path: 'frontend/node_modules'
+          - script: |
+              pushd frontend
+              echo "API URL: $VITE_API_URL"
+              npm install
+              npm run build
+              popd
+            displayName: 'Build frontend'
+            condition: eq(variables.stopJob, 'false')
+            env:
+              VITE_API_URL: $(API_URL)
+          - task: PublishPipelineArtifact@1
+            condition: eq(variables.stopJob, 'false')
+            inputs:
+              targetPath: 'frontend/dist'
+              artifact: 'frontend_build'
+      - job: BuildBackend
+        displayName: 'Build backend'
+        steps:
+          - checkout: self
+            fetchDepth: 2
+          - script: |
+              if git diff --name-only HEAD^ HEAD | grep -q -e '^backend/' -e '^azure/'; then
+                echo "##vso[task.setvariable variable=BackendChanged;isOutput=true]true";
+                echo "##vso[task.setvariable variable=stopJob]false";
+              else
+                echo "##vso[task.setvariable variable=BackendChanged;isOutput=true]false";
+                echo "##vso[task.setvariable variable=stopJob]true";
+              fi
+            displayName: 'Check for changes in backend'
+            name: CheckBackendChanges
+
+          - script: |
+              echo "Stop job: $variables.stopJob"
+            displayName: 'Check for stopjob'
+            name: debugstopJob
           - task: Docker@2
-            displayName: Build and push API container image
+            displayName: 'Build backend container image'
+            condition: eq(variables.stopJob, 'false')
             inputs:
               containerRegistry: $(DOCKER_REGISTRY_SERVICE_CONNECTION)
               repository: $(IMAGE_NAME)
@@ -35,45 +99,31 @@ stages:
               tags: |
                 $(Build.BuildId)
                 latest
-
-  - stage: deployApi
-    displayName: Deploy API
-    dependsOn: buildAndPush
-    condition: ne(variables['Build.Reason'], 'PullRequest') # only run on merges to main
+  - stage: Deploy
+    dependsOn: Build
     jobs:
-      - job: deployApi
-        displayName: Deploy API
+      - job: DebugVariables
+        displayName: 'Debug Output Variables'
         steps:
-          - task: AzureWebAppContainer@1
-            displayName: 'deploy API to Azure App Service'
-            inputs:
-              azureSubscription: 'deploy-dockerized-api'
-              appName: 'myuniquepasswordlessloginservice'
-              resourceGroup: 'login-rg'
-              containers: torleifs/webauthn:latest
-  - stage: buildAndDeployWebApp
-    displayName: Build and deploy web app
-    jobs:
-      - job: buildAndDeployWebApp
-        displayName: Build and deploy web app
-        steps:
-          - task: NodeTool@0
-            inputs:
-              versionSpec: '21.x'
-            displayName: 'Install Node.js'
           - script: |
-              pushd frontend
-              echo "API URL: $VITE_API_URL"
-              npm install
-              npm run build
-              popd
-            displayName: 'Build web app'
-            env:
-              VITE_API_URL: $(API_URL)
+              echo "FrontendChanged: $(stageDependencies.Build.BuildFrontend.outputs)"
+
+      - job: DeployFrontend
+        displayName: 'Deploy frontend'
+        condition: |
+          and(
+            eq(stageDependencies.Build.BuildFrontend.outputs['CheckFrontendChanges.FrontendChanged'], 'true'), 
+            ne(variables['Build.Reason'], 'PullRequest')
+          )
+        steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifactName: 'frontend_build'
+              targetPath: '$(Build.SourcesDirectory)/frontend/dist'
           - task: AzureCLI@2
             displayName: 'Set static website properties'
             inputs:
-              azureSubscription: deploy-dockerized-api
+              azureSubscription: 'deploy-dockerized-api'
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
@@ -82,15 +132,13 @@ stages:
                   --static-website \
                   --index-document index.html \
                   --404-document 404.html
-
           - task: AzureCLI@2
             displayName: 'Upload web app to storage account'
             inputs:
-              azureSubscription: deploy-dockerized-api
+              azureSubscription: 'deploy-dockerized-api'
               scriptType: bash
               scriptLocation: inlineScript
-              # $web is a special container for static websites
-              # --overwrite is needed to overwrite existing files
+              # overwrite is important, or nothing will be written
               inlineScript: |
                 az storage blob upload-batch \
                   --account-name myuniqueloginstorage \
@@ -98,3 +146,18 @@ stages:
                   --source frontend/dist \
                   --pattern "*" \
                   --overwrite
+      - job: DeployBackend
+        displayName: 'Deploy backend'
+        condition: |
+          and(
+            eq(stageDependencies.Build.BuildBackend.outputs['CheckBackendChanges.BackendChanged'], 'true'), 
+            ne(variables['Build.Reason'], 'PullRequest')
+          )
+        steps:
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy API to Azure App Service'
+            inputs:
+              azureSubscription: 'deploy-dockerized-api'
+              appName: 'myuniquepasswordlessloginservice'
+              resourceGroup: 'login-rg'
+              containers: $(IMAGE_NAME):latest
