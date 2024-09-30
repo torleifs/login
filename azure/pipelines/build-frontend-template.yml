@@ -1,0 +1,35 @@
+jobs:
+  - template: check-for-changes-template.yml
+    parameters:
+      folder: frontend
+      dependencyVariableName: FrontendChanged
+  - job: BuildFrontend
+    displayName: 'Build Frontend'
+    dependsOn: CheckforChanges
+    condition: eq(dependencies.CheckforChanges.outputs['CheckForChanges.FrontendChanged'], 'true')
+    steps:
+      - task: UseNode@1
+        condition: eq(variables.stopJob, 'false')
+        inputs:
+          version: '21.x'
+      - task: Cache@2
+        condition: eq(variables.stopJob, 'false')
+        inputs:
+          # package-lock.json content is hashed to construct the key
+          key: 'npm | "$(Agent.OS)" | frontend/package-lock.json'
+          path: 'frontend/node_modules'
+      - script: |
+          pushd frontend
+          echo "API URL: $VITE_API_URL"
+          npm install
+          npm run build
+          popd
+        displayName: 'Build frontend'
+        condition: eq(variables.stopJob, 'false')
+        env:
+          VITE_API_URL: $(API_URL)
+      - task: PublishPipelineArtifact@1
+        condition: eq(variables.stopJob, 'false')
+        inputs:
+          targetPath: 'frontend/dist'
+          artifact: 'frontend_build'

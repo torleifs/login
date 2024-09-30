@@ -25,49 +25,7 @@ variables:
 stages:
   - stage: Build
     jobs:
-      - job: BuildFrontend
-        displayName: 'Build frontend'
-        condition: contains(variables['Build.SourceBranchName'], 'main')
-        steps:
-          - checkout: self # necessary since we do git diff
-            fetchDepth: 2
-          - script: |
-              echo "Checking if frontend has changed"
-              if git diff --name-only HEAD^ HEAD | grep -q -e '^frontend/' -e '^azure/'; then
-                echo "##vso[task.setvariable variable=FrontendChanged;isOutput=true]true";
-                echo "##vso[task.setvariable variable=stopJob]false";
-              else
-                echo "##vso[task.setvariable variable=FrontendChanged;isOutput=true]false";
-                echo "##vso[task.setvariable variable=stopJob]true";
-                echo $variables.stopJob
-              fi
-            displayName: 'Check if frontend changed'
-            name: CheckFrontendChanges
-          - task: UseNode@1
-            condition: eq(variables.stopJob, 'false')
-            inputs:
-              version: '21.x'
-          - task: Cache@2
-            condition: eq(variables.stopJob, 'false')
-            inputs:
-              # package-lock.json content is hashed to construct the key
-              key: 'npm | "$(Agent.OS)" | frontend/package-lock.json'
-              path: 'frontend/node_modules'
-          - script: |
-              pushd frontend
-              echo "API URL: $VITE_API_URL"
-              npm install
-              npm run build
-              popd
-            displayName: 'Build frontend'
-            condition: eq(variables.stopJob, 'false')
-            env:
-              VITE_API_URL: $(API_URL)
-          - task: PublishPipelineArtifact@1
-            condition: eq(variables.stopJob, 'false')
-            inputs:
-              targetPath: 'frontend/dist'
-              artifact: 'frontend_build'
+      - template: build-frontend-template.yml
       - job: BuildBackend
         displayName: 'Build backend'
         steps:
