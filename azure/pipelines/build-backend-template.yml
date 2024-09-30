@@ -1,0 +1,22 @@
+jobs:
+  - template: check-for-changes-template.yml
+    parameters:
+      folder: backend
+      dependencyVariableName: BackendChanged
+      jobName: CheckforChangesBackend
+  - job: BuildBackend
+    displayName: 'Build backend'
+    dependsOn: CheckforChangesBackend
+    condition: eq(dependencies.CheckforChangesBackend.outputs['CheckForChanges.BackendChanged'], 'true')
+
+    steps:
+      - task: Docker@2
+        displayName: 'Build backend container image'
+        inputs:
+          containerRegistry: docker-registry
+          repository: torleifs/webauthn
+          command: buildAndPush
+          Dockerfile: $(Build.SourcesDirectory)/backend/Dockerfile
+          tags: |
+            $(Build.BuildId)
+            latest

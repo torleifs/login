@@ -1,0 +1,16 @@
+jobs:
+  - job: DeployBackend
+    displayName: 'Deploy backend'
+    condition: |
+      and(
+        eq(stageDependencies.Build.CheckforChangesBackend.outputs['CheckforChanges.BackendChanged'], 'true'), 
+        ne(variables['Build.Reason'], 'PullRequest')
+      )
+    steps:
+      - task: AzureWebAppContainer@1
+        displayName: 'Deploy API to Azure App Service'
+        inputs:
+          azureSubscription: 'deploy-dockerized-api'
+          appName: 'myuniquepasswordlessloginservice'
+          resourceGroup: 'login-rg'
+          containers: torleifs/webauthn:latest

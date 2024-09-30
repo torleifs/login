@@ -1,0 +1,53 @@
+jobs:
+  - job: DeployFrontend
+    displayName: 'Deploy frontend'
+    condition: |
+      and(
+        eq(stageDependencies.Build.CheckFrontendChanges.outputs['CheckforChanges.FrontendChanged'], 'true'), 
+        ne(variables['Build.Reason'], 'PullRequest')
+      )
+    variables:
+      webContainer: '$web'
+    steps:
+      - task: DownloadPipelineArtifact@2
+        inputs:
+          artifactName: 'frontend_build'
+          targetPath: '$(Build.SourcesDirectory)/frontend/dist'
+      - task: AzureCLI@2
+        displayName: 'Set static website properties'
+        inputs:
+          azureSubscription: 'deploy-dockerized-api'
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            az storage blob service-properties update \
+              --account-name myuniqueloginstorage \
+              --static-website \
+              --index-document index.html \
+              --404-document 404.html
+      - task: AzureCLI@2
+        displayName: 'Upload web app to storage account'
+        inputs:
+          azureSubscription: 'deploy-dockerized-api'
+          scriptType: bash
+          scriptLocation: inlineScript
+          # overwrite is important, or nothing will be written
+          inlineScript: |
+            az storage blob upload-batch \
+              --account-name myuniqueloginstorage \
+              --destination '$(webContainer)' \
+              --source frontend/dist \
+              --pattern "*" \
+              --overwrite
+      - task: AzureCLI@2
+        displayName: 'Purge CDN endpoint'
+        inputs:
+          azureSubscription: 'deploy-dockerized-api'
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            az cdn endpoint purge \
+              --resource-group login-rg \
+              --profile-name  myloginservice-cdn\
+              --name  myloginservice-cdn-endpoint\
+              --content-paths '/*'

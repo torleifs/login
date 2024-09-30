@@ -3,17 +3,18 @@ jobs:
     parameters:
       folder: frontend
       dependencyVariableName: FrontendChanged
+      jobName: CheckFrontendChanges
   - job: BuildFrontend
     displayName: 'Build Frontend'
-    dependsOn: CheckforChanges
-    condition: eq(dependencies.CheckforChanges.outputs['CheckForChanges.FrontendChanged'], 'true')
+    dependsOn: CheckFrontendChanges
+    condition: eq(dependencies.CheckFrontendChanges.outputs['CheckForChanges.FrontendChanged'], 'true')
+    variables:
+      API_URL: 'https://api.thelogin.xyz'
     steps:
       - task: UseNode@1
-        condition: eq(variables.stopJob, 'false')
         inputs:
           version: '21.x'
       - task: Cache@2
-        condition: eq(variables.stopJob, 'false')
         inputs:
           # package-lock.json content is hashed to construct the key
           key: 'npm | "$(Agent.OS)" | frontend/package-lock.json'
@@ -21,15 +22,14 @@ jobs:
       - script: |
           pushd frontend
           echo "API URL: $VITE_API_URL"
+          echo "deps: $(dependencies.CheckFrontendChanges.outputs['CheckForChanges.FrontendChanged'])"
           npm install
           npm run build
           popd
         displayName: 'Build frontend'
-        condition: eq(variables.stopJob, 'false')
         env:
           VITE_API_URL: $(API_URL)
       - task: PublishPipelineArtifact@1
-        condition: eq(variables.stopJob, 'false')
         inputs:
           targetPath: 'frontend/dist'
           artifact: 'frontend_build'
