@@ -104,7 +104,7 @@ const RegistrationModalContent = ({
       <DialogFooter>
         <Button type="submit" form="registrationForm" disabled={!isValid || isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isLoading ? 'Registering player' : 'Register player'}
+          {isLoading ? 'Registering user' : 'Register user'}
         </Button>
       </DialogFooter>
     </DialogContent>

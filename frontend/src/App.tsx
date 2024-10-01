@@ -49,11 +49,11 @@ function App() {
             </Dialog>
             <Button
               onClick={async () => {
-                const player = await assertPlayer();
-                if (player !== undefined) {
+                const user = await assertPlayer();
+                if (user !== undefined) {
                   setNotification({
                     heading: 'User was logged in',
-                    message: `${player.name} was logged in`,
+                    message: `${user.name} was logged in`,
                   });
                 }
               }}
