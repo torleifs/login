@@ -12,7 +12,7 @@ jobs:
       - checkout: self # necessary since we do git diff to see what changed
         fetchDepth: 2 # fetchDepth is set to 2 to get the last commit and the commit before that
       - script: |
-          if git diff --name-only HEAD^ HEAD | grep -q -e '^/${{parameters.folder}}' -e '^azure/'; then
+          if git diff --name-only HEAD^ HEAD | grep -q -e '^${{parameters.folder}}' -e '^azure/'; then
             echo "##vso[task.setvariable variable=${{parameters.dependencyVariableName}};isOutput=true]true";            
           else
             echo "##vso[task.setvariable variable=${{parameters.dependencyVariableName}};isOutput=true]false";
